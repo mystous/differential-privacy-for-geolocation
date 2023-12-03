@@ -33,48 +33,31 @@ typedef struct global_setting{
 GLOBAL_SETTING g_setting;
 
 const int max_filter_size = 8192;
-int shift_value = 245;
+int shift_value = 254;
 char bloom_filer[max_filter_size] = { '0', };
 vector<function<int(int, int)>> hash_functions;
 const string local_path = "/Users/mystous/projects/rappor_for_location/rappor_for_location/";
 const int k_size = max_filter_size;
-const string stastics_head = ",accuracy,find_count,total_count,hash_functions,bloomfilter_size,f,p,q,precision";
+const string stastics_head = ",accuracy,find_count,total_count,hash_functions,bloomfilter_size,f,p,q,precision,e_p,e_1";
 
 // Application configration
-const int line_skip_unit = 500;
+const int line_skip_unit = 30000;
 const bool show_progress = false;
 
 // Experiment parameters
 const int repeat_count = 1;
-//const int h_value_count = 1;
-//int h_value[h_value_count] = { 6 };
-//const int k_value_count = 1;
-//int k_value[k_value_count] = { 1024 };
-const int h_value_count = 5;
-int h_value[h_value_count] = { 2, 3, 4, 5, 6 };
-const int k_value_count = 5;
-int k_value[k_value_count] = { 32, 64, 128, 256, 512 };
-const int f_value_count = 1;
-float f_value[f_value_count] = { 0.5 };
-const int pr_value_count = 4;
-int pr_value[pr_value_count] = { 1, 2, 3, 4 };
-const int p_value_count = 1;
-float p_value[p_value_count] = { 0.5 };
-const int q_value_count = 1;
-float q_value[q_value_count] = { 0.75 };
-
-//const int h_value_count = 4;
-//int h_value[h_value_count] = { 2, 3, 4, 5 };
-//const int k_value_count =  6;
-//k_value[k_value_count] = { 256, 512, 1024, 2048, 4096, 8192 };
-//int f_value_count = 9;
-//f_value[f_value_count] = { 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9 };
-//int pr_value_count = 5;
-//pr_value[pr_value_count] = { 2, 3, 4, 5, 6};
-//int p_value_count = 9;
-//p_value[p_value_count] = { 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9 };
-//int q_value_count = 18;
-//q_value[q_value_count] = { 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95 };
+const int h_value_count = 6;
+int h_value[h_value_count] = { 1, 2, 3, 4, 5, 6 };
+const int k_value_count = 4;
+int k_value[k_value_count] = { 32, 64, 128, 256 };
+const int pr_value_count = 2;
+int pr_value[pr_value_count] = { 3, 4 };
+const int f_value_count = 10;
+float f_value[f_value_count] = { 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9 };
+const int p_value_count = 9;
+float p_value[p_value_count] = { 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9 };
+const int q_value_count = 18;
+float q_value[q_value_count] = { 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95 };
 
 bool random_decision(double probability) {
     static std::random_device rd;
@@ -101,13 +84,22 @@ float calcu_epsilon_instantaneous(GLOBAL_SETTING setting){
     return epsilon_instantaneous;
 }
 
-int quantizeCoordinate(double coordinate, GLOBAL_SETTING setting) {
+int quantize_coordinate(double coordinate, GLOBAL_SETTING setting) {
     double scale = pow(10.0, setting.precision_for_round);
     int new_coordination = round(coordinate * scale);
     if( new_coordination < 0 )
         new_coordination = 180 * pow(10, setting.precision_for_round) + (-1) * new_coordination;
-
     return new_coordination;
+}
+
+float convert_rounded_coordinate(double coordinate, GLOBAL_SETTING setting) {
+    double scale = pow(10.0, setting.precision_for_round);
+    
+    int new_coordination = round(coordinate * scale);
+    float converted_coordination = 0.;
+
+    converted_coordination = new_coordination / pow(10, setting.precision_for_round);
+    return converted_coordination;
 }
 
 void make_bloomfiler(int seed_value, GLOBAL_SETTING setting, bool initialize){
@@ -150,13 +142,13 @@ void randomize_instantaneous(GLOBAL_SETTING setting){
 }
 
 string make_bloomfiler_string(double coordination, GLOBAL_SETTING setting, bool initialize){
-    int new_coordination = quantizeCoordinate(coordination, setting);
+    int new_coordination = quantize_coordinate(coordination, setting);
     make_bloomfiler(new_coordination, setting, initialize);
     return bloom_filer;
 }
 
 string make_randomized_respose(double coordination, GLOBAL_SETTING setting, bool initialize){
-    int new_coordination = quantizeCoordinate(coordination, setting);
+    int new_coordination = quantize_coordinate(coordination, setting);
     make_bloomfiler(new_coordination, setting, initialize);
     randomize_permanent(setting);
     randomize_instantaneous(setting);
@@ -295,7 +287,13 @@ void build_string_and_path_answer(string &encoding_bloom_filer, GLOBAL_SETTING s
     "h(" + to_string(setting.h) + ")_" +
     "k(" + to_string(setting.k) + ")_" +
     "precision_for_round(" + to_string(setting.precision_for_round) + ").csv";
- 
+}
+
+void build_string_and_path_compare_result(string &result_file, GLOBAL_SETTING setting){
+    result_file = local_path + "bloom_encoding_" +
+    "h(" + to_string(setting.h) + ")_" +
+    "k(" + to_string(setting.k) + ")_" +
+    "precision_for_round(" + to_string(setting.precision_for_round) + ")_result.csv";
 }
 
 void build_answer_set(GLOBAL_SETTING setting){
@@ -339,11 +337,6 @@ void build_bloom_filter_bool(string bloom_filter_string, vector<vector<bool>> &c
 
 void read_bloomfilter(string bloom_result, vector<vector<bool>> &bloom_convert){
     ifstream bloom_file(bloom_result);
-    
-    if (!bloom_file.is_open()) {
-        cout << "file doesn't existed!" << endl;
-        return;
-    }
     
     int csv_index = 0;
     bool title = true;
@@ -414,35 +407,11 @@ int find_bloom_filer_in_list(vector<vector<bool>> &rappor,vector<vector<bool>> &
             finding_count++;
     }
     
-//    for( const auto &original_bloom : answer ){
-//        bool finded = false;
-//        index = -1;\
-//        rappor_index = 1;
-//        for( const auto &rappor_bloom : rappor ){
-//            index++;
-//            if( finded_index[index] )
-//                continue;
-//            
-//            if ( rappor_index % line_skip_unit == 0 && true == show_progress)
-//                cout << "Checking: answer(" << answer_index << ") rappor(" << rappor_index << ")" << endl;
-//            finded_index[index] = rappor_include_bloom(rappor_bloom, original_bloom);
-//            
-//            if(finded_index[index]){
-//                finded = true;
-//                finding_count++;
-//                break;
-//            }
-//            rappor_index++;
-//        }
-//        answer_index++;
-//    }
-    
     return finding_count;
 }
 
-void compare_bloom_filer(vector<vector<bool>> &rappor,vector<vector<bool>> &answer, GLOBAL_SETTING setting, int count, ofstream &write_file){
-    string new_header = ",ID,Severity,Start_Time,Start_Lat,Start_Lng,City,County,fined";
-    vector<bool> finded;
+void compare_bloom_filer(vector<vector<bool>> &rappor,vector<vector<bool>> &answer, GLOBAL_SETTING setting, int count, ofstream &write_file, vector<bool> &finded){
+    string new_header = ",ID,Severity,Start_Time,Start_Lat,Start_Lng,City,County,E_p,E_1";
     int finding_count = find_bloom_filer_in_list(rappor, answer, finded, setting);
     float percent = (float)finding_count/(float)answer.size();
     cout << endl << "Rappor show " << percent << " % results" << endl << endl;
@@ -450,27 +419,114 @@ void compare_bloom_filer(vector<vector<bool>> &rappor,vector<vector<bool>> &answ
     string stastics_body = to_string(count) + "," + to_string(percent) + "," +
     to_string(finding_count)  + "," + to_string(answer.size())  + "," +
     to_string(setting.h)  + "," + to_string(setting.k) + "," + to_string(setting.f) + "," +
-    to_string(setting.p) + "," + to_string(setting.q) + "," + to_string(setting.precision_for_round);
+    to_string(setting.p) + "," + to_string(setting.q) + "," + to_string(setting.precision_for_round) +
+    "," + to_string(calcu_epsilon_permanent(setting)) + "," + to_string(calcu_epsilon_instantaneous(setting));
 
     write_file << stastics_body << "\n";
 }
 
-void check_rappor_result(string rappor_result, string answer_file, GLOBAL_SETTING setting, int count, ofstream &write_file){
+string ftos(float f, int nd) {
+   ostringstream ostr;
+    if( f < 0 )
+        nd += 1;
+   int tens = stoi("1" + string(nd, '0'));
+   ostr << round(f*tens)/tens;
+   return ostr.str();
+}
+
+void print_out_compare_result_to_answer(vector<bool> &finded, GLOBAL_SETTING setting){
+    string answer_file_name, result_file_name;
+    
+    build_string_and_path_answer(answer_file_name, setting);
+    build_string_and_path_compare_result(result_file_name, setting);
+    
+    ifstream answer_file(answer_file_name);
+    ofstream result_file(result_file_name);
+    
+    int csv_index = 0;
+    bool title = true;
+    std::string line;
+    
+    if (!answer_file.is_open()) {
+        cerr << "Unable to open file" << std::endl;
+        return;
+    }
+    
+    if (!result_file.is_open()) {
+        std::cerr << "Unable to open target file" << std::endl;
+        return;
+    }
+    int line_count = 0;
+    
+    while (std::getline(answer_file, line)) {
+        line_count++;
+
+        std::istringstream s(line);
+        if( title ){
+            result_file << ",ID,Severity,Start_Time,Start_Lat,rounded_latitude,Start_Lng,rounded_longitude,Bloomfilter,City,County,finded_in_RAPPOR,E_p,E_1" << "\n";
+            title = false;
+            continue;
+        }
+        std::string field;
+        std::vector<std::string> fields;
+        
+        while (getline(s, field, ',')) {
+            fields.push_back(field);
+        }
+        
+        csv_index = 0;
+        string row = "";
+        for (const auto& f : fields) {
+            string element = f;
+            if( 4 == csv_index || 5 == csv_index ){
+                row += element;
+                row += ",";
+                double coordination = stod(element);
+                float converted_coordination = convert_rounded_coordinate(coordination, setting);
+                //                element = ftos(converted_coordination, setting.precision_for_round);
+                element = to_string(converted_coordination);
+            }
+            csv_index++;
+            row += element;
+            row += ",";
+        }
+        row += finded[line_count-1] ? "true" : "false";
+        row += ",";
+        row += to_string(calcu_epsilon_permanent(setting));
+        row += ",";
+        row += to_string(calcu_epsilon_instantaneous(setting));
+    
+        result_file << row;
+        result_file << "\n";
+    }
+    
+    answer_file.close();
+    result_file.close();
+    
+    cout << "Write result to answer file is completed" << endl;
+}
+
+void check_rappor_result(string rappor_result, string answer_file, GLOBAL_SETTING setting, int count, ofstream &write_file, vector<bool> &finded){
     vector<vector<bool>> rappor, answer;
     
     cout << "Build bloom filer for " << rappor_result << endl;
     read_bloomfilter(rappor_result, rappor);
     cout << "Build bloom filer for " << answer_file << endl;
     read_bloomfilter(answer_file, answer);
- 
-    compare_bloom_filer(rappor, answer, setting, count, write_file);
+    compare_bloom_filer(rappor, answer, setting, count, write_file, finded);
+    print_out_compare_result_to_answer(finded, setting);
 }
 
-void check_rappor_result_total(int try_count, int count, ofstream &write_file){
+void check_rappor_result_total(int try_count, int count, ofstream &write_file, GLOBAL_SETTING setting){
     string rappor_result, answer_file, read_file_name, message;
-    build_string_and_path_answer(answer_file, g_setting);
-    build_string_and_path(read_file_name, rappor_result, message, g_setting, try_count);
-    check_rappor_result(rappor_result, answer_file, g_setting, count, write_file);
+    string result_file;
+    vector<bool> finded;
+
+    build_string_and_path_answer(answer_file, setting);
+    build_string_and_path(read_file_name, rappor_result, message, setting, try_count);
+    check_rappor_result(rappor_result, answer_file, setting, count, write_file, finded);
+    build_string_and_path_compare_result(result_file, setting);
+
 }
 
 void build_string_and_path_with_time(string &message){
@@ -515,9 +571,18 @@ int main(int argc, const char * argv[]) {
                             for( int rp = 0 ; rp < repeat_count ; ++rp){
                                 float percent = (float)++count / (float) total * 100;
                                 cout << count << " / " << total << " (" << percent << "%)" << endl;
+                                
+                                float ep = calcu_epsilon_permanent(g_setting);
+                                float e1 = calcu_epsilon_instantaneous(g_setting);
+                                
+                                if( ep < 0 || e1 < 0 ){
+                                    cout << "Epsion values have to greater than 0 ep(" << ep << "), e1(" << e1 << ")" << endl << "This configration is skiped" << endl;
+                                    continue;
+                                }
+                                
                                 do_rappor(rp);
                                 build_answer_set(g_setting);
-                                check_rappor_result_total(rp, count, write_file);
+                                check_rappor_result_total(rp, count, write_file, g_setting);
                             }
                         }
                     }
