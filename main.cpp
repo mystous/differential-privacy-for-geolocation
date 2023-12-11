@@ -42,7 +42,7 @@ const string stastics_head = ",accuracy,find_count,total_count,hash_functions,bl
 
 // Application configration
 const int line_skip_unit = 30000;
-const bool show_progress = false;
+const bool show_progress = true;
 
 // Experiment parameters
 const int repeat_count = 1;
@@ -50,10 +50,10 @@ const int h_value_count = 6;
 int h_value[h_value_count] = { 1, 2, 3, 4, 5, 6 };
 const int k_value_count = 4;
 int k_value[k_value_count] = { 32, 64, 128, 256 };
-const int pr_value_count = 2;
-int pr_value[pr_value_count] = { 3, 4 };
+const int pr_value_count = 4;
+int pr_value[pr_value_count] = { 1, 2, 3, 4 };
 const int f_value_count = 10;
-float f_value[f_value_count] = { 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9 };
+float f_value[f_value_count] = { 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9  };
 const int p_value_count = 9;
 float p_value[p_value_count] = { 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9 };
 const int q_value_count = 18;
@@ -133,10 +133,14 @@ void randomize_instantaneous(GLOBAL_SETTING setting){
         if( '1' == bloom_filer[i]  ){
             if( random_decision(setting.q))
                 bloom_filer[i] = '1';
+            else
+                bloom_filer[i] = '0';
         }
         else{
             if( random_decision(setting.p))
                 bloom_filer[i] = '1';
+            else
+                bloom_filer[i] = '0';
         }
     }
 }
@@ -217,7 +221,7 @@ void build_string_and_path(string &readfile, string &writefile, string &message,
     "precision_for_round(" + to_string(setting.precision_for_round) + ")_" +
     "experiment(" + to_string(try_number) + ")_";
     
-    writefile = local_path + "e_p_" + to_string(calcu_epsilon_permanent(setting)) + "_e_1_" + to_string(calcu_epsilon_instantaneous(setting)) + message + "output.csv";
+    writefile = local_path + "e_p_" + to_string(calcu_epsilon_permanent(setting)) + "_e_1_" + to_string(calcu_epsilon_instantaneous(setting)) + "_" + message + "output.csv";
 }
 
 void read_data_and_change_coordinate(ifstream &read_file, ofstream &write_file, GLOBAL_SETTING setting, bool write_operation, function<string(double, GLOBAL_SETTING, bool)> operation_function){
@@ -289,11 +293,15 @@ void build_string_and_path_answer(string &encoding_bloom_filer, GLOBAL_SETTING s
     "precision_for_round(" + to_string(setting.precision_for_round) + ").csv";
 }
 
-void build_string_and_path_compare_result(string &result_file, GLOBAL_SETTING setting){
+void build_string_and_path_compare_result(string &result_file, GLOBAL_SETTING setting, int try_count){
     result_file = local_path + "bloom_encoding_" +
+    "f(" + to_string(setting.f) + ")_" +
+    "p(" + to_string(setting.p) + ")_" +
+    "q(" + to_string(setting.q) + ")_" +
     "h(" + to_string(setting.h) + ")_" +
     "k(" + to_string(setting.k) + ")_" +
-    "precision_for_round(" + to_string(setting.precision_for_round) + ")_result.csv";
+    "precision_for_round(" + to_string(setting.precision_for_round) + ")_" +
+    "expriement(" + to_string(try_count)+ ")_result.csv";
 }
 
 void build_answer_set(GLOBAL_SETTING setting){
@@ -413,7 +421,7 @@ int find_bloom_filer_in_list(vector<vector<bool>> &rappor,vector<vector<bool>> &
 void compare_bloom_filer(vector<vector<bool>> &rappor,vector<vector<bool>> &answer, GLOBAL_SETTING setting, int count, ofstream &write_file, vector<bool> &finded){
     string new_header = ",ID,Severity,Start_Time,Start_Lat,Start_Lng,City,County,E_p,E_1";
     int finding_count = find_bloom_filer_in_list(rappor, answer, finded, setting);
-    float percent = (float)finding_count/(float)answer.size();
+    float percent = (float)finding_count/(float)answer.size() * 100;
     cout << endl << "Rappor show " << percent << " % results" << endl << endl;
     
     string stastics_body = to_string(count) + "," + to_string(percent) + "," +
@@ -434,11 +442,11 @@ string ftos(float f, int nd) {
    return ostr.str();
 }
 
-void print_out_compare_result_to_answer(vector<bool> &finded, GLOBAL_SETTING setting){
+void print_out_compare_result_to_answer(vector<bool> &finded, GLOBAL_SETTING setting, int try_count){
     string answer_file_name, result_file_name;
     
     build_string_and_path_answer(answer_file_name, setting);
-    build_string_and_path_compare_result(result_file_name, setting);
+    build_string_and_path_compare_result(result_file_name, setting, try_count);
     
     ifstream answer_file(answer_file_name);
     ofstream result_file(result_file_name);
@@ -506,7 +514,7 @@ void print_out_compare_result_to_answer(vector<bool> &finded, GLOBAL_SETTING set
     cout << "Write result to answer file is completed" << endl;
 }
 
-void check_rappor_result(string rappor_result, string answer_file, GLOBAL_SETTING setting, int count, ofstream &write_file, vector<bool> &finded){
+void check_rappor_result(string rappor_result, string answer_file, GLOBAL_SETTING setting, int count, ofstream &write_file, vector<bool> &finded, int try_count){
     vector<vector<bool>> rappor, answer;
     
     cout << "Build bloom filer for " << rappor_result << endl;
@@ -514,7 +522,7 @@ void check_rappor_result(string rappor_result, string answer_file, GLOBAL_SETTIN
     cout << "Build bloom filer for " << answer_file << endl;
     read_bloomfilter(answer_file, answer);
     compare_bloom_filer(rappor, answer, setting, count, write_file, finded);
-    print_out_compare_result_to_answer(finded, setting);
+    print_out_compare_result_to_answer(finded, setting, try_count);
 }
 
 void check_rappor_result_total(int try_count, int count, ofstream &write_file, GLOBAL_SETTING setting){
@@ -524,8 +532,8 @@ void check_rappor_result_total(int try_count, int count, ofstream &write_file, G
 
     build_string_and_path_answer(answer_file, setting);
     build_string_and_path(read_file_name, rappor_result, message, setting, try_count);
-    check_rappor_result(rappor_result, answer_file, setting, count, write_file, finded);
-    build_string_and_path_compare_result(result_file, setting);
+    check_rappor_result(rappor_result, answer_file, setting, count, write_file, finded, try_count);
+    //build_string_and_path_compare_result(result_file, setting);
 
 }
 
